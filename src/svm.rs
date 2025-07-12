@@ -102,14 +102,14 @@ impl Div for Value {
 
 #[derive(Debug)]
 pub enum Inst {
-    Push(Value),
+    Psh(Value),
     Add,
     Sub,
     Mul,
     Div,
-    Print,       // prints the stack
-    Jump(usize), // jumps to absolute, zero-indexed instruction
-    Halt,
+    Prt,        // prints the stack
+    Jmp(usize), // jumps to absolute, zero-indexed instruction
+    Hlt,
 }
 
 #[derive(Debug)]
@@ -134,7 +134,7 @@ impl Svm {
         while self.ip < self.insts.len() {
             if let Some(inst) = self.insts.get(self.ip) {
                 match inst {
-                    Inst::Push(operand) => {
+                    Inst::Psh(operand) => {
                         self.check_stack_overflow(1);
 
                         self.stack[self.sp] = *operand;
@@ -153,27 +153,30 @@ impl Svm {
                     Inst::Sub => {
                         self.check_stack_underflow(2);
                         self.stack[self.sp - 2] = self.stack[self.sp - 2] - self.stack[self.sp - 1];
+
                         self.sp -= 1;
                         self.ip += 1;
                     }
                     Inst::Mul => {
                         self.check_stack_underflow(2);
                         self.stack[self.sp - 2] = self.stack[self.sp - 2] * self.stack[self.sp - 1];
+
                         self.sp -= 1;
                         self.ip += 1;
                     }
                     Inst::Div => {
                         self.check_stack_underflow(2);
                         self.stack[self.sp - 2] = self.stack[self.sp - 2] / self.stack[self.sp - 1];
+
                         self.sp -= 1;
                         self.ip += 1;
                     }
-                    Inst::Print => {
+                    Inst::Prt => {
                         self.print_stack();
 
                         self.ip += 1;
                     }
-                    Inst::Jump(addr) => {
+                    Inst::Jmp(addr) => {
                         if *addr > self.insts.len() - 1 {
                             eprintln!("[ERROR] Illegal instruction");
                             exit(1);
@@ -181,7 +184,7 @@ impl Svm {
 
                         self.ip = *addr;
                     }
-                    Inst::Halt => {
+                    Inst::Hlt => {
                         println!("[INFO] StackedVM halted");
                         exit(0);
                     }
@@ -225,7 +228,7 @@ mod test {
 
     #[test]
     fn single_push() {
-        let program = vec![Inst::Push(10.into())];
+        let program = vec![Inst::Psh(10.into())];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 10.into());
@@ -233,7 +236,7 @@ mod test {
 
     #[test]
     fn single_add() {
-        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Add];
+        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Add];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 25.into());
@@ -241,7 +244,7 @@ mod test {
 
     #[test]
     fn single_sub() {
-        let program = vec![Inst::Push(15.into()), Inst::Push(10.into()), Inst::Sub];
+        let program = vec![Inst::Psh(15.into()), Inst::Psh(10.into()), Inst::Sub];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
@@ -249,7 +252,7 @@ mod test {
 
     #[test]
     fn single_mul() {
-        let program = vec![Inst::Push(2.into()), Inst::Push(10.into()), Inst::Mul];
+        let program = vec![Inst::Psh(2.into()), Inst::Psh(10.into()), Inst::Mul];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 20.into());
@@ -257,7 +260,7 @@ mod test {
 
     #[test]
     fn single_div() {
-        let program = vec![Inst::Push(15.into()), Inst::Push(3.into()), Inst::Div];
+        let program = vec![Inst::Psh(15.into()), Inst::Psh(3.into()), Inst::Div];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
