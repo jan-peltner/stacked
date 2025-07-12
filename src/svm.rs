@@ -2,9 +2,11 @@ use core::ops::{Add, Div, Mul, Sub};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::{array, process::exit};
 
-const STACK_SIZE: usize = 10;
+const STACK_SIZE: usize = 1024;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+pub type Program = Vec<Inst>;
+
+#[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub enum Value {
     Int(i64),
     Float(f64),
@@ -102,14 +104,15 @@ impl Div for Value {
 
 #[derive(Debug)]
 pub enum Inst {
-    Psh(Value),
-    Add,
-    Sub,
-    Mul,
-    Div,
+    Psh(Value), // pushes `Value`
+    Add,        // pops two values and pushes sum
+    Sub,        // pops two values and pushes diff
+    Mul,        // pops two values and pushes prod
+    Div,        // pops two values and pushes quot
+    Adk,        // pushes sum without consuming values
     Prt,        // prints the stack
     Jmp(usize), // jumps to absolute, zero-indexed instruction
-    Hlt,
+    Hlt,        // halts machine
 }
 
 #[derive(Debug)]
@@ -171,6 +174,15 @@ impl Svm {
                         self.sp -= 1;
                         self.ip += 1;
                     }
+                    Inst::Adk => {
+                        self.check_stack_underflow(2);
+                        self.check_stack_overflow(1);
+
+                        self.stack[self.sp] = self.stack[self.sp - 2] + self.stack[self.sp - 1];
+
+                        self.sp += 1;
+                        self.ip += 1;
+                    }
                     Inst::Prt => {
                         self.print_stack();
 
@@ -226,8 +238,15 @@ mod test {
         return svm;
     }
 
+    fn collect_stack_without_zeroes(svm: Svm) -> Vec<Value> {
+        svm.stack
+            .into_iter()
+            .filter(|num| num > &Value::Int(0.into()))
+            .collect()
+    }
+
     #[test]
-    fn single_push() {
+    fn single_psh() {
         let program = vec![Inst::Psh(10.into())];
 
         let svm = setup_and_run(program);
@@ -240,6 +259,18 @@ mod test {
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 25.into());
+    }
+
+    #[test]
+    fn single_adk() {
+        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Adk];
+
+        let svm = setup_and_run(program);
+
+        assert_eq!(
+            collect_stack_without_zeroes(svm),
+            vec![Value::Int(10), Value::Int(15), Value::Int(25)]
+        );
     }
 
     #[test]

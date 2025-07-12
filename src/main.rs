@@ -1,13 +1,13 @@
 use stacked::svm::*;
 
 fn main() {
-    let program: Vec<Inst> = vec![
+    let fib: Program = vec![
+        Inst::Psh(0.into()),
         Inst::Psh(1.into()),
-        Inst::Psh(10.into()),
-        Inst::Add,
+        Inst::Adk,
         Inst::Prt,
-        Inst::Hlt,
+        Inst::Jmp(2),
     ];
-    let mut svm = Svm::from_program(program);
+    let mut svm = Svm::from_program(fib);
     svm.run();
 }
