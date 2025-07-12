@@ -100,3 +100,38 @@ impl Svm {
         println!("    [{}] <-- sp", self.sp)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn setup_and_run(program: Vec<Inst>) -> Svm {
+        let mut svm = Svm::from_program(program);
+        svm.run();
+        return svm;
+    }
+
+    #[test]
+    fn single_push() {
+        let program = vec![Inst::Push(10)];
+
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], 10);
+    }
+
+    #[test]
+    fn single_add() {
+        let program = vec![Inst::Push(10), Inst::Push(15), Inst::Add];
+
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], 25);
+    }
+
+    #[test]
+    fn single_sub() {
+        let program = vec![Inst::Push(15), Inst::Push(10), Inst::Sub];
+
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], 5);
+    }
+}
