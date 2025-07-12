@@ -67,6 +67,7 @@ impl Sub for Value {
         }
     }
 }
+
 impl Mul for Value {
     type Output = Value;
     fn mul(self, rhs: Self) -> Self::Output {
@@ -82,6 +83,7 @@ impl Mul for Value {
         }
     }
 }
+
 impl Div for Value {
     type Output = Value;
     fn div(self, rhs: Self) -> Self::Output {
@@ -105,8 +107,8 @@ pub enum Inst {
     Sub,
     Mul,
     Div,
-    Print, // prints the stack
-    Jump(usize),
+    Print,       // prints the stack
+    Jump(usize), // jumps to absolute, zero-indexed instruction
     Halt,
 }
 
