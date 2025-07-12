@@ -127,13 +127,13 @@ pub enum Inst {
 
 #[derive(Debug)]
 pub struct Svm {
-    pub ip: usize,  // instruction pointer
-    pub sp: usize,  // stack pointer
-    pub dp: usize,  // data pointer
-    pub cond: bool, // condition register
-    pub stack: [Atom; STACK_CAP],
-    pub insts: Vec<Inst>,
-    pub data: [u8; DATA_CAP],
+    ip: usize,  // instruction pointer
+    sp: usize,  // stack pointer
+    dp: usize,  // data pointer
+    cond: bool, // condition register
+    stack: [Atom; STACK_CAP],
+    insts: Vec<Inst>,
+    data: [u8; DATA_CAP],
 }
 
 impl Svm {
