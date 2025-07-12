@@ -2,7 +2,7 @@ use core::ops::{Add, Div, Mul, Sub};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::{array, process::exit};
 
-const STACK_SIZE: usize = 1024;
+const STACK_CAP: usize = 1024;
 
 pub type Program = Vec<Inst>;
 
@@ -120,7 +120,7 @@ pub struct Svm {
     pub ip: usize,  // instruction pointer
     pub sp: usize,  // stack pointer
     pub cond: bool, // condition register
-    pub stack: [Value; STACK_SIZE],
+    pub stack: [Value; STACK_CAP],
     pub insts: Vec<Inst>,
 }
 
@@ -208,7 +208,7 @@ impl Svm {
     }
 
     fn check_stack_overflow(&self, count: usize) {
-        if self.sp + count > STACK_SIZE {
+        if self.sp + count > STACK_CAP {
             eprintln!("[ERROR] Stack overflow");
             exit(1);
         }
