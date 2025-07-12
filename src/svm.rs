@@ -109,7 +109,7 @@ pub enum Inst {
     Sub,        // pops two values and pushes diff
     Mul,        // pops two values and pushes prod
     Div,        // pops two values and pushes quot
-    Adk,        // pushes sum without consuming values
+    Dup(usize), // pushes nth, zero-indexed top value
     Prt,        // prints the stack
     Jmp(usize), // jumps to absolute, zero-indexed instruction
     Hlt,        // halts machine
@@ -117,8 +117,9 @@ pub enum Inst {
 
 #[derive(Debug)]
 pub struct Svm {
-    pub ip: usize,
-    pub sp: usize,
+    pub ip: usize,  // instruction pointer
+    pub sp: usize,  // stack pointer
+    pub cond: bool, // condition register
     pub stack: [Value; STACK_SIZE],
     pub insts: Vec<Inst>,
 }
@@ -128,6 +129,7 @@ impl Svm {
         Svm {
             ip: 0,
             sp: 0,
+            cond: false,
             stack: array::from_fn(|_| 0.into()),
             insts: program,
         }
@@ -174,11 +176,11 @@ impl Svm {
                         self.sp -= 1;
                         self.ip += 1;
                     }
-                    Inst::Adk => {
-                        self.check_stack_underflow(2);
+                    Inst::Dup(operand) => {
+                        self.check_stack_underflow(*operand);
                         self.check_stack_overflow(1);
 
-                        self.stack[self.sp] = self.stack[self.sp - 2] + self.stack[self.sp - 1];
+                        self.stack[self.sp] = self.stack[self.sp - *operand - 1];
 
                         self.sp += 1;
                         self.ip += 1;
@@ -212,6 +214,8 @@ impl Svm {
         }
     }
 
+    // 0 1 2 3
+    //
     fn check_stack_underflow(&self, count: usize) {
         if self.sp < count {
             eprintln!("[ERROR] Stack underflow");
@@ -262,14 +266,26 @@ mod test {
     }
 
     #[test]
-    fn single_adk() {
-        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Adk];
+    fn single_dup_top() {
+        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Dup(0)];
 
         let svm = setup_and_run(program);
 
         assert_eq!(
             collect_stack_without_zeroes(svm),
-            vec![Value::Int(10), Value::Int(15), Value::Int(25)]
+            vec![Value::Int(10), Value::Int(15), Value::Int(15)]
+        );
+    }
+
+    #[test]
+    fn single_dup_bottom() {
+        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Dup(1)];
+
+        let svm = setup_and_run(program);
+
+        assert_eq!(
+            collect_stack_without_zeroes(svm),
+            vec![Value::Int(10), Value::Int(15), Value::Int(10)]
         );
     }
 
