@@ -3,34 +3,35 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::{array, process::exit};
 
 const STACK_CAP: usize = 1024;
+const DATA_CAP: usize = 1024;
 
 pub type Program = Vec<Inst>;
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
-pub enum Value {
+pub enum Atom {
     Int(i64),
     Float(f64),
 }
 
-impl From<i64> for Value {
+impl From<i64> for Atom {
     fn from(val: i64) -> Self {
         Self::Int(val)
     }
 }
 
-impl From<f64> for Value {
+impl From<f64> for Atom {
     fn from(val: f64) -> Self {
         Self::Float(val)
     }
 }
 
-impl Display for Value {
+impl Display for Atom {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self {
-            &Value::Int(val) => {
+            &Atom::Int(val) => {
                 write!(f, "{:.4}", val)?;
             }
-            &Value::Float(val) => {
+            &Atom::Float(val) => {
                 write!(f, "{}", val)?;
             }
         }
@@ -38,65 +39,65 @@ impl Display for Value {
     }
 }
 
-impl Add for Value {
-    type Output = Value;
+impl Add for Atom {
+    type Output = Atom;
     fn add(self, rhs: Self) -> Self::Output {
         match self {
-            Value::Int(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val + rhs_val).into(),
-                Value::Float(rhs_val) => (lhs_val as f64 + rhs_val).into(),
+            Atom::Int(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val + rhs_val).into(),
+                Atom::Float(rhs_val) => (lhs_val as f64 + rhs_val).into(),
             },
-            Value::Float(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val + rhs_val as f64).into(),
-                Value::Float(rhs_val) => (lhs_val + rhs_val).into(),
+            Atom::Float(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val + rhs_val as f64).into(),
+                Atom::Float(rhs_val) => (lhs_val + rhs_val).into(),
             },
         }
     }
 }
 
-impl Sub for Value {
-    type Output = Value;
+impl Sub for Atom {
+    type Output = Atom;
     fn sub(self, rhs: Self) -> Self::Output {
         match self {
-            Value::Int(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val - rhs_val).into(),
-                Value::Float(rhs_val) => (lhs_val as f64 - rhs_val).into(),
+            Atom::Int(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val - rhs_val).into(),
+                Atom::Float(rhs_val) => (lhs_val as f64 - rhs_val).into(),
             },
-            Value::Float(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val - rhs_val as f64).into(),
-                Value::Float(rhs_val) => (lhs_val - rhs_val).into(),
+            Atom::Float(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val - rhs_val as f64).into(),
+                Atom::Float(rhs_val) => (lhs_val - rhs_val).into(),
             },
         }
     }
 }
 
-impl Mul for Value {
-    type Output = Value;
+impl Mul for Atom {
+    type Output = Atom;
     fn mul(self, rhs: Self) -> Self::Output {
         match self {
-            Value::Int(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val * rhs_val).into(),
-                Value::Float(rhs_val) => (lhs_val as f64 * rhs_val).into(),
+            Atom::Int(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val * rhs_val).into(),
+                Atom::Float(rhs_val) => (lhs_val as f64 * rhs_val).into(),
             },
-            Value::Float(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val * rhs_val as f64).into(),
-                Value::Float(rhs_val) => (lhs_val * rhs_val).into(),
+            Atom::Float(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val * rhs_val as f64).into(),
+                Atom::Float(rhs_val) => (lhs_val * rhs_val).into(),
             },
         }
     }
 }
 
-impl Div for Value {
-    type Output = Value;
+impl Div for Atom {
+    type Output = Atom;
     fn div(self, rhs: Self) -> Self::Output {
         match self {
-            Value::Int(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val / rhs_val).into(),
-                Value::Float(rhs_val) => (lhs_val as f64 / rhs_val).into(),
+            Atom::Int(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val / rhs_val).into(),
+                Atom::Float(rhs_val) => (lhs_val as f64 / rhs_val).into(),
             },
-            Value::Float(lhs_val) => match rhs {
-                Value::Int(rhs_val) => (lhs_val / rhs_val as f64).into(),
-                Value::Float(rhs_val) => (lhs_val / rhs_val).into(),
+            Atom::Float(lhs_val) => match rhs {
+                Atom::Int(rhs_val) => (lhs_val / rhs_val as f64).into(),
+                Atom::Float(rhs_val) => (lhs_val / rhs_val).into(),
             },
         }
     }
@@ -104,7 +105,7 @@ impl Div for Value {
 
 #[derive(Debug)]
 pub enum Inst {
-    Psh(Value), // pushes `Value`
+    Psh(Atom),  // pushes `Value`
     Add,        // pops two values and pushes sum
     Sub,        // pops two values and pushes diff
     Mul,        // pops two values and pushes prod
@@ -112,6 +113,8 @@ pub enum Inst {
     Dup(usize), // pushes nth, zero-indexed top value
     Prt,        // prints the stack
     Jmp(usize), // jumps to absolute, zero-indexed instruction
+    Lfa,        // loads value from address
+    Wta,        // pops value and writes it to address
     Hlt,        // halts machine
 }
 
@@ -119,9 +122,11 @@ pub enum Inst {
 pub struct Svm {
     pub ip: usize,  // instruction pointer
     pub sp: usize,  // stack pointer
+    pub dp: usize,  // data pointer
     pub cond: bool, // condition register
-    pub stack: [Value; STACK_CAP],
+    pub stack: [Atom; STACK_CAP],
     pub insts: Vec<Inst>,
+    pub data: [u8; DATA_CAP],
 }
 
 impl Svm {
@@ -129,9 +134,11 @@ impl Svm {
         Svm {
             ip: 0,
             sp: 0,
+            dp: 0,
             cond: false,
             stack: array::from_fn(|_| 0.into()),
             insts: program,
+            data: array::from_fn(|_| 0.into()),
         }
     }
 
@@ -198,8 +205,33 @@ impl Svm {
 
                         self.ip = *addr;
                     }
+                    Inst::Wta => {
+                        self.check_stack_underflow(2);
+
+                        if let Atom::Int(addr) = self.stack[self.sp - 2] {
+                            Svm::check_valid_address(addr);
+
+                            match self.stack[self.sp - 1] {
+                                Atom::Int(val) => {
+                                    self.write_data(addr as usize, val.to_le_bytes().to_vec());
+                                }
+                                Atom::Float(val) => {
+                                    self.write_data(addr as usize, val.to_le_bytes().to_vec());
+                                }
+                            }
+                        } else {
+                            eprintln!("[ERROR] Illegal address (float not allowed)");
+                            exit(1);
+                        }
+
+                        self.ip += 1;
+                        self.sp -= 2;
+                    }
+                    Inst::Lfa => {
+                        todo!()
+                    }
                     Inst::Hlt => {
-                        println!("[INFO] StackedVM halted");
+                        println!("[INFO] Stacked halted");
                         exit(0);
                     }
                 }
@@ -214,8 +246,6 @@ impl Svm {
         }
     }
 
-    // 0 1 2 3
-    //
     fn check_stack_underflow(&self, count: usize) {
         if self.sp < count {
             eprintln!("[ERROR] Stack underflow");
@@ -230,6 +260,23 @@ impl Svm {
         }
         println!("    [{}] <-- sp", self.sp)
     }
+
+    fn check_valid_address(addr: i64) {
+        if i64::is_negative(addr) {
+            eprintln!("[ERROR] Illegal address (negative integer not allowed)");
+            exit(1);
+        }
+        if addr as usize > DATA_CAP {
+            eprintln!("[ERROR] Illegal address (out of bounds)");
+            exit(1);
+        }
+    }
+
+    fn write_data(&mut self, addr: usize, bytes: Vec<u8>) {
+        for i in 0..bytes.len() {
+            self.data[addr + i] = bytes[i];
+        }
+    }
 }
 
 #[cfg(test)]
@@ -242,10 +289,10 @@ mod test {
         return svm;
     }
 
-    fn collect_stack_without_zeroes(svm: Svm) -> Vec<Value> {
+    fn collect_stack_without_zeroes(svm: Svm) -> Vec<Atom> {
         svm.stack
             .into_iter()
-            .filter(|num| num > &Value::Int(0.into()))
+            .filter(|num| num > &Atom::Int(0.into()))
             .collect()
     }
 
@@ -255,6 +302,7 @@ mod test {
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 10.into());
+        assert_eq!(svm.sp, 1);
     }
 
     #[test]
@@ -263,6 +311,7 @@ mod test {
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 25.into());
+        assert_eq!(svm.sp, 1);
     }
 
     #[test]
@@ -271,9 +320,10 @@ mod test {
 
         let svm = setup_and_run(program);
 
+        assert_eq!(svm.sp, 3);
         assert_eq!(
             collect_stack_without_zeroes(svm),
-            vec![Value::Int(10), Value::Int(15), Value::Int(15)]
+            vec![Atom::Int(10), Atom::Int(15), Atom::Int(15)]
         );
     }
 
@@ -283,9 +333,10 @@ mod test {
 
         let svm = setup_and_run(program);
 
+        assert_eq!(svm.sp, 3);
         assert_eq!(
             collect_stack_without_zeroes(svm),
-            vec![Value::Int(10), Value::Int(15), Value::Int(10)]
+            vec![Atom::Int(10), Atom::Int(15), Atom::Int(10)]
         );
     }
 
@@ -295,6 +346,7 @@ mod test {
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
+        assert_eq!(svm.sp, 1);
     }
 
     #[test]
@@ -303,6 +355,7 @@ mod test {
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 20.into());
+        assert_eq!(svm.sp, 1);
     }
 
     #[test]
@@ -311,5 +364,17 @@ mod test {
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn write_single_int_to_data() {
+        let program = vec![Inst::Psh(0.into()), Inst::Psh(15.into()), Inst::Wta];
+        let svm = setup_and_run(program);
+        let data_bytes: [u8; 8] = svm.data[0..8]
+            .try_into()
+            .expect("data slice doesn't have expected length");
+        assert_eq!(i64::from_le_bytes(data_bytes), 15);
+        assert_eq!(svm.sp, 0);
     }
 }
