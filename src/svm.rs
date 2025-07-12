@@ -105,17 +105,18 @@ impl Div for Atom {
 
 #[derive(Debug)]
 pub enum Inst {
-    Psh(Atom),  // pushes `Value`
-    Add,        // pops two values and pushes sum
-    Sub,        // pops two values and pushes diff
-    Mul,        // pops two values and pushes prod
-    Div,        // pops two values and pushes quot
-    Dup(usize), // pushes nth, zero-indexed top value
-    Prt,        // prints the stack
-    Jmp(usize), // jumps to absolute, zero-indexed instruction
-    Lfa,        // loads value from address
-    Wta,        // pops value and writes it to address
-    Hlt,        // halts machine
+    Push(Atom),  // pushes `Value`
+    Add,         // pops two values and pushes sum
+    Sub,         // pops two values and pushes diff
+    Mul,         // pops two values and pushes prod
+    Div,         // pops two values and pushes quot
+    Dupe(usize), // pushes nth, zero-indexed top value
+    Print,       // prints the stack
+    Jump(usize), // jumps to absolute, zero-indexed instruction
+    Loadi,       // loads int value from address
+    Loadf,       // loads float value from address
+    Write,       // pops value and writes it to address
+    Halt,        // halts machine
 }
 
 #[derive(Debug)]
@@ -146,7 +147,7 @@ impl Svm {
         while self.ip < self.insts.len() {
             if let Some(inst) = self.insts.get(self.ip) {
                 match inst {
-                    Inst::Psh(operand) => {
+                    Inst::Push(operand) => {
                         self.check_stack_overflow(1);
 
                         self.stack[self.sp] = *operand;
@@ -183,7 +184,7 @@ impl Svm {
                         self.sp -= 1;
                         self.ip += 1;
                     }
-                    Inst::Dup(operand) => {
+                    Inst::Dupe(operand) => {
                         self.check_stack_underflow(*operand);
                         self.check_stack_overflow(1);
 
@@ -192,12 +193,12 @@ impl Svm {
                         self.sp += 1;
                         self.ip += 1;
                     }
-                    Inst::Prt => {
+                    Inst::Print => {
                         self.print_stack();
 
                         self.ip += 1;
                     }
-                    Inst::Jmp(addr) => {
+                    Inst::Jump(addr) => {
                         if *addr > self.insts.len() - 1 {
                             eprintln!("[ERROR] Illegal instruction");
                             exit(1);
@@ -205,7 +206,7 @@ impl Svm {
 
                         self.ip = *addr;
                     }
-                    Inst::Wta => {
+                    Inst::Write => {
                         self.check_stack_underflow(2);
 
                         if let Atom::Int(addr) = self.stack[self.sp - 2] {
@@ -227,10 +228,43 @@ impl Svm {
                         self.ip += 1;
                         self.sp -= 2;
                     }
-                    Inst::Lfa => {
-                        todo!()
+                    Inst::Loadi => {
+                        self.check_stack_underflow(1);
+
+                        if let Atom::Int(addr) = self.stack[self.sp - 1] {
+                            Svm::check_valid_address(addr);
+                            self.stack[self.sp - 1] = i64::from_le_bytes(
+                                self.read_data(addr as usize, 8)
+                                    .try_into()
+                                    .expect("[ERROR] Could not convert bytes to float"),
+                            )
+                            .into();
+                        } else {
+                            eprintln!("[ERROR] Illegal address (float not allowed)");
+                            exit(1);
+                        }
+
+                        self.ip += 1;
                     }
-                    Inst::Hlt => {
+                    Inst::Loadf => {
+                        self.check_stack_underflow(1);
+
+                        if let Atom::Int(addr) = self.stack[self.sp - 1] {
+                            Svm::check_valid_address(addr);
+                            self.stack[self.sp - 1] = f64::from_le_bytes(
+                                self.read_data(addr as usize, 8)
+                                    .try_into()
+                                    .expect("[ERROR] Could not convert bytes to float"),
+                            )
+                            .into();
+                        } else {
+                            eprintln!("[ERROR] Illegal address (float not allowed)");
+                            exit(1);
+                        }
+
+                        self.ip += 1;
+                    }
+                    Inst::Halt => {
                         println!("[INFO] Stacked halted");
                         exit(0);
                     }
@@ -277,6 +311,11 @@ impl Svm {
             self.data[addr + i] = bytes[i];
         }
     }
+
+    fn read_data(&self, addr: usize, size: usize) -> Vec<u8> {
+        // TODO: check for out of bounds
+        Vec::from(&self.data[addr..addr + size])
+    }
 }
 
 #[cfg(test)]
@@ -298,7 +337,7 @@ mod test {
 
     #[test]
     fn single_psh() {
-        let program = vec![Inst::Psh(10.into())];
+        let program = vec![Inst::Push(10.into())];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 10.into());
@@ -307,7 +346,7 @@ mod test {
 
     #[test]
     fn single_add() {
-        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Add];
+        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Add];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 25.into());
@@ -316,7 +355,7 @@ mod test {
 
     #[test]
     fn single_dup_top() {
-        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Dup(0)];
+        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Dupe(0)];
 
         let svm = setup_and_run(program);
 
@@ -329,7 +368,7 @@ mod test {
 
     #[test]
     fn single_dup_bottom() {
-        let program = vec![Inst::Psh(10.into()), Inst::Psh(15.into()), Inst::Dup(1)];
+        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Dupe(1)];
 
         let svm = setup_and_run(program);
 
@@ -342,7 +381,7 @@ mod test {
 
     #[test]
     fn single_sub() {
-        let program = vec![Inst::Psh(15.into()), Inst::Psh(10.into()), Inst::Sub];
+        let program = vec![Inst::Push(15.into()), Inst::Push(10.into()), Inst::Sub];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
@@ -351,7 +390,7 @@ mod test {
 
     #[test]
     fn single_mul() {
-        let program = vec![Inst::Psh(2.into()), Inst::Psh(10.into()), Inst::Mul];
+        let program = vec![Inst::Push(2.into()), Inst::Push(10.into()), Inst::Mul];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 20.into());
@@ -360,7 +399,7 @@ mod test {
 
     #[test]
     fn single_div() {
-        let program = vec![Inst::Psh(15.into()), Inst::Psh(3.into()), Inst::Div];
+        let program = vec![Inst::Push(15.into()), Inst::Push(3.into()), Inst::Div];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
@@ -369,12 +408,26 @@ mod test {
 
     #[test]
     fn write_single_int_to_data() {
-        let program = vec![Inst::Psh(0.into()), Inst::Psh(15.into()), Inst::Wta];
+        let program = vec![Inst::Push(0.into()), Inst::Push(15.into()), Inst::Write];
         let svm = setup_and_run(program);
         let data_bytes: [u8; 8] = svm.data[0..8]
             .try_into()
             .expect("data slice doesn't have expected length");
         assert_eq!(i64::from_le_bytes(data_bytes), 15);
         assert_eq!(svm.sp, 0);
+    }
+
+    #[test]
+    fn load_single_int_to_data() {
+        let program = vec![
+            Inst::Push(0.into()),
+            Inst::Push(15.5.into()),
+            Inst::Write,
+            Inst::Push(0.into()),
+            Inst::Loadf,
+        ];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::Float(15.5.into()));
+        assert_eq!(svm.sp, 1);
     }
 }
