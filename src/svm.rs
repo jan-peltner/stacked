@@ -105,17 +105,23 @@ impl Div for Atom {
 
 #[derive(Debug)]
 pub enum Inst {
-    Push(Atom),  // pushes `Value`
-    Add,         // pops two values and pushes sum
-    Sub,         // pops two values and pushes diff
-    Mul,         // pops two values and pushes prod
-    Div,         // pops two values and pushes quot
-    Dupe(usize), // pushes nth, zero-indexed top value
+    Push(Atom),  // pushes atom
+    Add,         // pops two atoms and pushes sum
+    Sub,         // pops two atoms and pushes diff
+    Mul,         // pops two atoms and pushes prod
+    Div,         // pops two atoms and pushes quot
+    Eq,          // ==
+    Neq,         // !=
+    Gt,          // >
+    Gte,         // >=
+    Lt,          // <
+    Lte,         // <=
+    Dupe(usize), // pushes nth, zero-indexed top atom
     Print,       // prints the stack
     Jump(usize), // jumps to absolute, zero-indexed instruction
-    Loadi,       // loads int value from address
-    Loadf,       // loads float value from address
-    Write,       // pops value and writes it to address
+    Loadi,       // loads int atom from address
+    Loadf,       // loads float atom from address
+    Write,       // pops atom and writes it to address
     Halt,        // halts machine
 }
 
@@ -264,6 +270,12 @@ impl Svm {
 
                         self.ip += 1;
                     }
+                    Inst::Eq => todo!(),
+                    Inst::Neq => todo!(),
+                    Inst::Gt => todo!(),
+                    Inst::Gte => todo!(),
+                    Inst::Lt => todo!(),
+                    Inst::Lte => todo!(),
                     Inst::Halt => {
                         println!("[INFO] Stacked halted");
                         exit(0);
