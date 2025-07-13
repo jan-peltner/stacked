@@ -1,5 +1,5 @@
-use stacked::primitives::*;
-use stacked::svm::*;
+use stacked::primitives::{Inst, Program};
+use stacked::svm::Svm;
 
 fn main() {
     let fib_n: Program = vec![
