@@ -579,7 +579,7 @@ mod test {
     fn single_eq() {
         let program = vec![Inst::Push(5.into()), Inst::Push(5.into()), Inst::Eq];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -587,7 +587,7 @@ mod test {
     fn single_neq() {
         let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Neq];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -595,7 +595,7 @@ mod test {
     fn single_gt() {
         let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gt];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -603,7 +603,7 @@ mod test {
     fn single_lt() {
         let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lt];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -611,7 +611,7 @@ mod test {
     fn single_gte() {
         let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gte];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -619,7 +619,7 @@ mod test {
     fn single_lte() {
         let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lte];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
     }
     #[test]
@@ -629,7 +629,7 @@ mod test {
             Inst::Push(10.into()), // 5 10 sp
             Inst::Lte,             // 1 sp
             Inst::Jump1(5),        // sp
-            Inst::Jump(0),         // ignore
+            Inst::Jump(0),         // <skip>
             Inst::Push(5.into()),  // 5 sp
         ];
         let svm = setup_and_run(program);
