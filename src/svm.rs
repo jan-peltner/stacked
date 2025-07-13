@@ -336,9 +336,11 @@ mod test {
             .collect()
     }
 
+    use Inst::*;
+
     #[test]
     fn single_psh() {
-        let program = vec![Inst::Push(10.into())];
+        let program = vec![Push(10.into())];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 10.into());
@@ -347,7 +349,7 @@ mod test {
 
     #[test]
     fn single_add() {
-        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Add];
+        let program = vec![Push(10.into()), Push(15.into()), Add];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 25.into());
@@ -356,7 +358,7 @@ mod test {
 
     #[test]
     fn single_dup_top() {
-        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Dupe(0)];
+        let program = vec![Push(10.into()), Push(15.into()), Dupe(0)];
 
         let svm = setup_and_run(program);
 
@@ -369,7 +371,7 @@ mod test {
 
     #[test]
     fn single_dup_bottom() {
-        let program = vec![Inst::Push(10.into()), Inst::Push(15.into()), Inst::Dupe(1)];
+        let program = vec![Push(10.into()), Push(15.into()), Dupe(1)];
 
         let svm = setup_and_run(program);
 
@@ -382,7 +384,7 @@ mod test {
 
     #[test]
     fn single_sub() {
-        let program = vec![Inst::Push(15.into()), Inst::Push(10.into()), Inst::Sub];
+        let program = vec![Push(15.into()), Push(10.into()), Sub];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
@@ -391,7 +393,7 @@ mod test {
 
     #[test]
     fn single_mul() {
-        let program = vec![Inst::Push(2.into()), Inst::Push(10.into()), Inst::Mul];
+        let program = vec![Push(2.into()), Push(10.into()), Mul];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 20.into());
@@ -400,7 +402,7 @@ mod test {
 
     #[test]
     fn single_div() {
-        let program = vec![Inst::Push(15.into()), Inst::Push(3.into()), Inst::Div];
+        let program = vec![Push(15.into()), Push(3.into()), Div];
 
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], 5.into());
@@ -409,7 +411,7 @@ mod test {
 
     #[test]
     fn write_single_int_to_data() {
-        let program = vec![Inst::Push(0.into()), Inst::Push(15.into()), Inst::Write];
+        let program = vec![Push(0.into()), Push(15.into()), Write];
         let svm = setup_and_run(program);
         let data_bytes: [u8; 8] = svm.data[0..8]
             .try_into()
@@ -421,11 +423,11 @@ mod test {
     #[test]
     fn load_single_int_from_data() {
         let program = vec![
-            Inst::Push(0.into()),
-            Inst::Push(15.5.into()),
-            Inst::Write,
-            Inst::Push(0.into()),
-            Inst::Loadf,
+            Push(0.into()),
+            Push(15.5.into()),
+            Write,
+            Push(0.into()),
+            Loadf,
         ];
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], Atom::Float(15.5.into()));
@@ -434,7 +436,7 @@ mod test {
 
     #[test]
     fn single_eq() {
-        let program = vec![Inst::Push(5.into()), Inst::Push(5.into()), Inst::Eq];
+        let program = vec![Push(5.into()), Push(5.into()), Eq];
         let svm = setup_and_run(program);
         assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
@@ -442,7 +444,7 @@ mod test {
 
     #[test]
     fn single_neq() {
-        let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Neq];
+        let program = vec![Push(5.into()), Push(10.into()), Neq];
         let svm = setup_and_run(program);
         assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
@@ -450,7 +452,7 @@ mod test {
 
     #[test]
     fn single_gt() {
-        let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gt];
+        let program = vec![Push(10.into()), Push(5.into()), Gt];
         let svm = setup_and_run(program);
         assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
@@ -458,7 +460,7 @@ mod test {
 
     #[test]
     fn single_lt() {
-        let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lt];
+        let program = vec![Push(5.into()), Push(10.into()), Lt];
         let svm = setup_and_run(program);
         assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
@@ -466,7 +468,7 @@ mod test {
 
     #[test]
     fn single_gte() {
-        let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gte];
+        let program = vec![Push(10.into()), Push(5.into()), Gte];
         let svm = setup_and_run(program);
         assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
@@ -474,7 +476,7 @@ mod test {
 
     #[test]
     fn single_lte() {
-        let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lte];
+        let program = vec![Push(5.into()), Push(10.into()), Lte];
         let svm = setup_and_run(program);
         assert!(svm.stack[0].is_true());
         assert_eq!(svm.sp, 1);
@@ -482,12 +484,12 @@ mod test {
     #[test]
     fn single_jump1() {
         let program = vec![
-            Inst::Push(5.into()),  // 5 sp
-            Inst::Push(10.into()), // 5 10 sp
-            Inst::Lte,             // 1 sp
-            Inst::Jump1(5),        // sp
-            Inst::Jump(0),         // <skip>
-            Inst::Push(5.into()),  // 5 sp
+            Push(5.into()),  // 5 sp
+            Push(10.into()), // 5 10 sp
+            Lte,             // 1 sp
+            Jump1(5),        // sp
+            Jump(0),         // <skip>
+            Push(5.into()),  // 5 sp
         ];
         let svm = setup_and_run(program);
         assert_eq!(svm.ip, 6);
@@ -496,12 +498,12 @@ mod test {
     #[test]
     fn single_jump0() {
         let program = vec![
-            Inst::Push(10.into()),
-            Inst::Push(5.into()),
-            Inst::Lte,
-            Inst::Jump0(5),
-            Inst::Jump(0),
-            Inst::Push(5.into()),
+            Push(10.into()),
+            Push(5.into()),
+            Lte,
+            Jump0(5),
+            Jump(0),
+            Push(5.into()),
         ];
         let svm = setup_and_run(program);
         assert_eq!(svm.ip, 6);

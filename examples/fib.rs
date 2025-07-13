@@ -2,28 +2,30 @@ use stacked::primitives::{Inst, Program};
 use stacked::svm::Svm;
 
 fn main() {
+    use Inst::*;
+
     let fib_n: Program = vec![
-        Inst::Push(0.into()),
-        Inst::Push(1.into()),
-        Inst::Push(0.into()),
-        Inst::Push(8.into()),
-        Inst::Write,
-        Inst::Push(0.into()),
-        Inst::Loadi,
-        Inst::Push(0.into()),
-        Inst::Lte,
-        Inst::Jump1(20),
-        Inst::Push(0.into()),
-        Inst::Push(0.into()),
-        Inst::Loadi,
-        Inst::Push(1.into()),
-        Inst::Sub,
-        Inst::Write,
-        Inst::Dupe(1),
-        Inst::Dupe(1),
-        Inst::Add,
-        Inst::Jump(5),
-        Inst::Print,
+        Push(0.into()),
+        Push(1.into()),
+        Push(0.into()),
+        Push(8.into()),
+        Write,
+        Push(0.into()),
+        Loadi,
+        Push(0.into()),
+        Lte,
+        Jump1(20),
+        Push(0.into()),
+        Push(0.into()),
+        Loadi,
+        Push(1.into()),
+        Sub,
+        Write,
+        Dupe(1),
+        Dupe(1),
+        Add,
+        Jump(5),
+        Print,
     ];
     let mut svm = Svm::from_program(fib_n);
     svm.run();
