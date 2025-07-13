@@ -1,3 +1,4 @@
+use stacked::primitives::*;
 use stacked::svm::*;
 
 fn main() {
