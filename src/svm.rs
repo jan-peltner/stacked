@@ -25,14 +25,24 @@ impl From<f64> for Atom {
     }
 }
 
+impl Atom {
+    fn bool_true() -> Self {
+        Self::Int(1.into())
+    }
+
+    fn bool_false() -> Self {
+        Self::Int(0.into())
+    }
+}
+
 impl Display for Atom {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self {
             &Atom::Int(val) => {
-                write!(f, "{:.4}", val)?;
+                write!(f, "{}", val)?;
             }
             &Atom::Float(val) => {
-                write!(f, "{}", val)?;
+                write!(f, "{:.4}", val)?;
             }
         }
         Ok(())
@@ -105,44 +115,43 @@ impl Div for Atom {
 
 #[derive(Debug)]
 pub enum Inst {
-    Push(Atom),  // pushes atom
-    Add,         // pops two atoms and pushes sum
-    Sub,         // pops two atoms and pushes diff
-    Mul,         // pops two atoms and pushes prod
-    Div,         // pops two atoms and pushes quot
-    Eq,          // ==
-    Neq,         // !=
-    Gt,          // >
-    Gte,         // >=
-    Lt,          // <
-    Lte,         // <=
+    Push(Atom), // pushes atom
+    Add,        // consumes two atoms and pushes sum
+    Sub,        // consumes two atoms and pushes diff
+    Mul,        // consumes two atoms and pushes prod
+    Div,        // consumes two atoms and pushes quot
+
+    // logical comparisons consume two atoms and push a boolean atom (1 or 0)
+    Eq,
+    Neq,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+
     Dupe(usize), // pushes nth, zero-indexed top atom
-    Print,       // prints the stack
     Jump(usize), // jumps to absolute, zero-indexed instruction
+    Print,       // prints the stack
     Loadi,       // loads int atom from address
     Loadf,       // loads float atom from address
-    Write,       // pops atom and writes it to address
+    Write,       // consumes atom and writes it to address
     Halt,        // halts machine
 }
 
 #[derive(Debug)]
 pub struct Svm {
-    ip: usize,  // instruction pointer
-    sp: usize,  // stack pointer
-    dp: usize,  // data pointer
-    cond: bool, // condition register
+    ip: usize, // instruction pointer
+    sp: usize, // stack pointer
     stack: [Atom; STACK_CAP],
     insts: Vec<Inst>,
     data: [u8; DATA_CAP],
 }
 
 impl Svm {
-    pub fn from_program(program: Vec<Inst>) -> Self {
+    pub fn from_program(program: Program) -> Self {
         Svm {
             ip: 0,
             sp: 0,
-            dp: 0,
-            cond: false,
             stack: array::from_fn(|_| 0.into()),
             insts: program,
             data: array::from_fn(|_| 0.into()),
@@ -270,12 +279,84 @@ impl Svm {
 
                         self.ip += 1;
                     }
-                    Inst::Eq => todo!(),
-                    Inst::Neq => todo!(),
-                    Inst::Gt => todo!(),
-                    Inst::Gte => todo!(),
-                    Inst::Lt => todo!(),
-                    Inst::Lte => todo!(),
+                    Inst::Eq => {
+                        self.check_stack_underflow(2);
+
+                        self.stack[self.sp - 2] =
+                            if self.stack[self.sp - 2] == self.stack[self.sp - 1] {
+                                Atom::bool_true()
+                            } else {
+                                Atom::bool_false()
+                            };
+
+                        self.ip += 1;
+                        self.sp -= 1;
+                    }
+                    Inst::Neq => {
+                        self.check_stack_underflow(2);
+
+                        self.stack[self.sp - 2] =
+                            if self.stack[self.sp - 2] != self.stack[self.sp - 1] {
+                                Atom::bool_true()
+                            } else {
+                                Atom::bool_false()
+                            };
+
+                        self.ip += 1;
+                        self.sp -= 1;
+                    }
+                    Inst::Gt => {
+                        self.check_stack_underflow(2);
+
+                        self.stack[self.sp - 2] =
+                            if self.stack[self.sp - 2] > self.stack[self.sp - 1] {
+                                Atom::bool_true()
+                            } else {
+                                Atom::bool_false()
+                            };
+
+                        self.ip += 1;
+                        self.sp -= 1;
+                    }
+                    Inst::Gte => {
+                        self.check_stack_underflow(2);
+
+                        self.stack[self.sp - 2] =
+                            if self.stack[self.sp - 2] >= self.stack[self.sp - 1] {
+                                Atom::bool_true()
+                            } else {
+                                Atom::bool_false()
+                            };
+
+                        self.ip += 1;
+                        self.sp -= 1;
+                    }
+                    Inst::Lt => {
+                        self.check_stack_underflow(2);
+
+                        self.stack[self.sp - 2] =
+                            if self.stack[self.sp - 2] < self.stack[self.sp - 1] {
+                                Atom::bool_true()
+                            } else {
+                                Atom::bool_false()
+                            };
+
+                        self.ip += 1;
+                        self.sp -= 1;
+                    }
+                    Inst::Lte => {
+                        self.check_stack_underflow(2);
+
+                        self.stack[self.sp - 2] =
+                            if self.stack[self.sp - 2] <= self.stack[self.sp - 1] {
+                                Atom::bool_true()
+                            } else {
+                                Atom::bool_false()
+                            };
+
+                        self.ip += 1;
+                        self.sp -= 1;
+                    }
                     Inst::Halt => {
                         println!("[INFO] Stacked halted");
                         exit(0);
@@ -430,7 +511,7 @@ mod test {
     }
 
     #[test]
-    fn load_single_int_to_data() {
+    fn load_single_int_from_data() {
         let program = vec![
             Inst::Push(0.into()),
             Inst::Push(15.5.into()),
@@ -440,6 +521,54 @@ mod test {
         ];
         let svm = setup_and_run(program);
         assert_eq!(svm.stack[0], Atom::Float(15.5.into()));
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn single_eq() {
+        let program = vec![Inst::Push(5.into()), Inst::Push(5.into()), Inst::Eq];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn single_neq() {
+        let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Neq];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn single_gt() {
+        let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gt];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn single_lt() {
+        let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lt];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn single_gte() {
+        let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gte];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.sp, 1);
+    }
+
+    #[test]
+    fn single_lte() {
+        let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lte];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.stack[0], Atom::bool_true());
         assert_eq!(svm.sp, 1);
     }
 }
