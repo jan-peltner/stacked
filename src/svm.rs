@@ -26,12 +26,19 @@ impl From<f64> for Atom {
 }
 
 impl Atom {
-    fn bool_true() -> Self {
+    fn spawn_bool_true() -> Self {
         Self::Int(1.into())
     }
 
-    fn bool_false() -> Self {
+    fn spawn_bool_false() -> Self {
         Self::Int(0.into())
+    }
+
+    fn is_true(&self) -> bool {
+        match self {
+            &Atom::Int(1) => true,
+            _ => false,
+        }
     }
 }
 
@@ -115,13 +122,15 @@ impl Div for Atom {
 
 #[derive(Debug)]
 pub enum Inst {
-    Push(Atom), // pushes atom
-    Add,        // consumes two atoms and pushes sum
-    Sub,        // consumes two atoms and pushes diff
-    Mul,        // consumes two atoms and pushes prod
-    Div,        // consumes two atoms and pushes quot
+    Push(Atom),  // pushes atom operand
+    Dupe(usize), // pushes nth top atom, effectively duplicating
 
-    // logical comparisons consume two atoms and push a boolean atom (1 or 0)
+    Add, // consumes two value_atoms and pushes sum
+    Sub, // consumes two value_atoms and pushes diff
+    Mul, // consumes two value_atoms and pushes prod
+    Div, // consumes two value_atoms and pushes quot
+
+    // logical comparisons consume two atoms and push a bool_atom (1 or 0)
     Eq,
     Neq,
     Gt,
@@ -129,13 +138,16 @@ pub enum Inst {
     Lt,
     Lte,
 
-    Dupe(usize), // pushes nth, zero-indexed top atom
-    Jump(usize), // jumps to absolute, zero-indexed instruction
-    Print,       // prints the stack
-    Loadi,       // loads int atom from address
-    Loadf,       // loads float atom from address
-    Write,       // consumes atom and writes it to address
-    Halt,        // halts machine
+    Jump(usize),  // jumps to absolute instruction
+    Jump1(usize), // consumes bool_atom and jumps to absolute address if true
+    Jump0(usize), // consumes bool_atom and jumps to absolute address if false
+
+    Loadi, // consumes one address_atom, loads int_atom (8 bytes) from address
+    Loadf, // consumes one address_atom, loads float_atom (8 bytes) from address
+    Write, // consumes two atoms (address_atom + value_atom) and writes it to address
+
+    Print, // prints the stack
+    Halt,  // halts machine
 }
 
 #[derive(Debug)]
@@ -214,6 +226,8 @@ impl Svm {
                         self.ip += 1;
                     }
                     Inst::Jump(addr) => {
+                        self.check_valid_inst_address(*addr);
+
                         if *addr > self.insts.len() - 1 {
                             eprintln!("[ERROR] Illegal instruction");
                             exit(1);
@@ -225,7 +239,7 @@ impl Svm {
                         self.check_stack_underflow(2);
 
                         if let Atom::Int(addr) = self.stack[self.sp - 2] {
-                            Svm::check_valid_address(addr);
+                            Svm::check_valid_data_address(addr);
 
                             match self.stack[self.sp - 1] {
                                 Atom::Int(val) => {
@@ -247,7 +261,7 @@ impl Svm {
                         self.check_stack_underflow(1);
 
                         if let Atom::Int(addr) = self.stack[self.sp - 1] {
-                            Svm::check_valid_address(addr);
+                            Svm::check_valid_data_address(addr);
                             self.stack[self.sp - 1] = i64::from_le_bytes(
                                 self.read_data(addr as usize, 8)
                                     .try_into()
@@ -265,7 +279,7 @@ impl Svm {
                         self.check_stack_underflow(1);
 
                         if let Atom::Int(addr) = self.stack[self.sp - 1] {
-                            Svm::check_valid_address(addr);
+                            Svm::check_valid_data_address(addr);
                             self.stack[self.sp - 1] = f64::from_le_bytes(
                                 self.read_data(addr as usize, 8)
                                     .try_into()
@@ -284,9 +298,9 @@ impl Svm {
 
                         self.stack[self.sp - 2] =
                             if self.stack[self.sp - 2] == self.stack[self.sp - 1] {
-                                Atom::bool_true()
+                                Atom::spawn_bool_true()
                             } else {
-                                Atom::bool_false()
+                                Atom::spawn_bool_false()
                             };
 
                         self.ip += 1;
@@ -297,9 +311,9 @@ impl Svm {
 
                         self.stack[self.sp - 2] =
                             if self.stack[self.sp - 2] != self.stack[self.sp - 1] {
-                                Atom::bool_true()
+                                Atom::spawn_bool_true()
                             } else {
-                                Atom::bool_false()
+                                Atom::spawn_bool_false()
                             };
 
                         self.ip += 1;
@@ -310,9 +324,9 @@ impl Svm {
 
                         self.stack[self.sp - 2] =
                             if self.stack[self.sp - 2] > self.stack[self.sp - 1] {
-                                Atom::bool_true()
+                                Atom::spawn_bool_true()
                             } else {
-                                Atom::bool_false()
+                                Atom::spawn_bool_false()
                             };
 
                         self.ip += 1;
@@ -323,9 +337,9 @@ impl Svm {
 
                         self.stack[self.sp - 2] =
                             if self.stack[self.sp - 2] >= self.stack[self.sp - 1] {
-                                Atom::bool_true()
+                                Atom::spawn_bool_true()
                             } else {
-                                Atom::bool_false()
+                                Atom::spawn_bool_false()
                             };
 
                         self.ip += 1;
@@ -336,9 +350,9 @@ impl Svm {
 
                         self.stack[self.sp - 2] =
                             if self.stack[self.sp - 2] < self.stack[self.sp - 1] {
-                                Atom::bool_true()
+                                Atom::spawn_bool_true()
                             } else {
-                                Atom::bool_false()
+                                Atom::spawn_bool_false()
                             };
 
                         self.ip += 1;
@@ -349,9 +363,9 @@ impl Svm {
 
                         self.stack[self.sp - 2] =
                             if self.stack[self.sp - 2] <= self.stack[self.sp - 1] {
-                                Atom::bool_true()
+                                Atom::spawn_bool_true()
                             } else {
-                                Atom::bool_false()
+                                Atom::spawn_bool_false()
                             };
 
                         self.ip += 1;
@@ -360,6 +374,36 @@ impl Svm {
                     Inst::Halt => {
                         println!("[INFO] Stacked halted");
                         exit(0);
+                    }
+                    Inst::Jump1(addr) => {
+                        self.check_stack_overflow(1);
+                        self.check_valid_inst_address(*addr);
+
+                        let flag = self.stack[self.sp - 1].is_true();
+                        if flag {
+                            self.ip = *addr;
+                        }
+
+                        if !flag {
+                            self.ip += 1;
+                        }
+
+                        self.sp -= 1;
+                    }
+                    Inst::Jump0(addr) => {
+                        self.check_stack_overflow(1);
+                        self.check_valid_inst_address(*addr);
+
+                        let flag = !self.stack[self.sp - 1].is_true();
+                        if flag {
+                            self.ip = *addr;
+                        }
+
+                        if !flag {
+                            self.ip += 1;
+                        }
+
+                        self.sp -= 1;
                     }
                 }
             }
@@ -388,13 +432,20 @@ impl Svm {
         println!("    [{}] <-- sp", self.sp)
     }
 
-    fn check_valid_address(addr: i64) {
+    fn check_valid_data_address(addr: i64) {
         if i64::is_negative(addr) {
             eprintln!("[ERROR] Illegal address (negative integer not allowed)");
             exit(1);
         }
-        if addr as usize > DATA_CAP {
-            eprintln!("[ERROR] Illegal address (out of bounds)");
+        if addr as usize >= DATA_CAP {
+            eprintln!("[ERROR] Illegal data address (out of bounds)");
+            exit(1);
+        }
+    }
+
+    fn check_valid_inst_address(&self, addr: usize) {
+        if addr as usize >= self.insts.len() {
+            eprintln!("[ERROR] Illegal instruction address (out of bounds)");
             exit(1);
         }
     }
@@ -528,7 +579,7 @@ mod test {
     fn single_eq() {
         let program = vec![Inst::Push(5.into()), Inst::Push(5.into()), Inst::Eq];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -536,7 +587,7 @@ mod test {
     fn single_neq() {
         let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Neq];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -544,7 +595,7 @@ mod test {
     fn single_gt() {
         let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gt];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -552,7 +603,7 @@ mod test {
     fn single_lt() {
         let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lt];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -560,7 +611,7 @@ mod test {
     fn single_gte() {
         let program = vec![Inst::Push(10.into()), Inst::Push(5.into()), Inst::Gte];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
         assert_eq!(svm.sp, 1);
     }
 
@@ -568,7 +619,35 @@ mod test {
     fn single_lte() {
         let program = vec![Inst::Push(5.into()), Inst::Push(10.into()), Inst::Lte];
         let svm = setup_and_run(program);
-        assert_eq!(svm.stack[0], Atom::bool_true());
+        assert_eq!(svm.stack[0], Atom::spawn_bool_true());
+        assert_eq!(svm.sp, 1);
+    }
+    #[test]
+    fn single_jump1() {
+        let program = vec![
+            Inst::Push(5.into()),  // 5 sp
+            Inst::Push(10.into()), // 5 10 sp
+            Inst::Lte,             // 1 sp
+            Inst::Jump1(5),        // sp
+            Inst::Jump(0),         // ignore
+            Inst::Push(5.into()),  // 5 sp
+        ];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.ip, 6);
+        assert_eq!(svm.sp, 1);
+    }
+    #[test]
+    fn single_jump0() {
+        let program = vec![
+            Inst::Push(10.into()),
+            Inst::Push(5.into()),
+            Inst::Lte,
+            Inst::Jump0(5),
+            Inst::Jump(0),
+            Inst::Push(5.into()),
+        ];
+        let svm = setup_and_run(program);
+        assert_eq!(svm.ip, 6);
         assert_eq!(svm.sp, 1);
     }
 }
