@@ -472,6 +472,9 @@ mod test {
         return svm;
     }
 
+    // NOTE: the VM stack is initialized with zeroes which can be
+    // problematic when testing for the expected stack size or
+    // comparing against explicit zero values
     fn collect_stack_without_zeroes(svm: Svm) -> Vec<Atom> {
         svm.stack
             .into_iter()
@@ -506,7 +509,7 @@ mod test {
         assert_eq!(svm.sp, 3);
         assert_eq!(
             collect_stack_without_zeroes(svm),
-            vec![Atom::Int(10), Atom::Int(15), Atom::Int(15)]
+            vec![10.into(), 15.into(), 15.into()]
         );
     }
 
@@ -519,7 +522,7 @@ mod test {
         assert_eq!(svm.sp, 3);
         assert_eq!(
             collect_stack_without_zeroes(svm),
-            vec![Atom::Int(10), Atom::Int(15), Atom::Int(10)]
+            vec![10.into(), 15.into(), 10.into()]
         );
     }
 
