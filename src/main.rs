@@ -1,15 +1,29 @@
 use stacked::svm::*;
 
 fn main() {
-    let fib: Program = vec![
-        Inst::Push(0.into()), // 0
-        Inst::Push(1.into()), // 0 1
-        Inst::Dupe(1),        // 0 1 0
-        Inst::Dupe(1),        // 0 1 0 1
-        Inst::Add,            // 0 1 1
+    let fib_n: Program = vec![
+        Inst::Push(0.into()),
+        Inst::Push(1.into()),
+        Inst::Push(0.into()),
+        Inst::Push(8.into()),
+        Inst::Write,
+        Inst::Push(0.into()),
+        Inst::Loadi,
+        Inst::Push(0.into()),
+        Inst::Lte,
+        Inst::Jump1(20),
+        Inst::Push(0.into()),
+        Inst::Push(0.into()),
+        Inst::Loadi,
+        Inst::Push(1.into()),
+        Inst::Sub,
+        Inst::Write,
+        Inst::Dupe(1),
+        Inst::Dupe(1),
+        Inst::Add,
+        Inst::Jump(5),
         Inst::Print,
-        Inst::Jump(2),
     ];
-    let mut svm = Svm::from_program(fib);
+    let mut svm = Svm::from_program(fib_n);
     svm.run();
 }
