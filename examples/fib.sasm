@@ -1,0 +1,36 @@
+@use
+
+@data
+	x = 12
+	
+@prog
+~main
+	# setup first 2 fib numbers and write counter (8) to address 0x0
+	Push 0
+	Push 1
+	Push 0
+	Push 8
+	Write
+~loop
+	# load counter and jump to end if finished iterating
+	Push 0
+	Loadi
+	Push 0
+	Lte
+	Jump1 ~end
+	
+	# decrement and write new counter
+	Push 0
+	Push 0
+	Loadi
+	Push 1
+	Sub
+	Write
+
+	# compute next fib
+	Dupe 1
+	Dupe 1
+	Add
+	Jump ~loop
+~end
+	Print

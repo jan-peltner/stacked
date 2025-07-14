@@ -1,18 +1,49 @@
 use crate::primitives::{Atom, Inst, Program};
+use std::fmt::Display;
 use std::io::Error as ioError;
 use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug)]
-pub enum TokenKind {
-    Symbol,
-    Inst,
+pub enum Token {
+    Symbol(Sym),
+    Instruction(Inst),
+    Atom(Atom),
+    Directive(Dir),
 }
 
-impl std::fmt::Display for TokenKind {
+#[derive(Debug)]
+pub enum Sym {
+    Label,
+    Var,
+}
+
+#[derive(Debug)]
+pub enum Dir {
+    Prog,
+    Use,
+    Data,
+}
+
+impl Display for Dir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TokenKind::Symbol => write!(f, "Symbol"),
-            TokenKind::Inst => write!(f, "Instruction"),
+            Dir::Prog => write!(f, "@prog"),
+            Dir::Use => write!(f, "@use"),
+            Dir::Data => write!(f, "@data"),
+        }
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Symbol(sym) => match sym {
+                Sym::Label => write!(f, "Symbol(Label)"),
+                Sym::Var => write!(f, "Symbol(Var)"),
+            },
+            Token::Instruction(_) => write!(f, "Instruction"),
+            Token::Atom(atom) => write!(f, "Atom: {atom})"),
+            Token::Directive(dir) => write!(f, "Directive({dir})"),
         }
     }
 }
@@ -28,13 +59,13 @@ pub struct ParseError {
 pub enum AssemblerError {
     Io(ioError),
     InvalidFile(String),
-    MissingProgSection,
+    MissingProgDirective,
     MissingMainLabel,
-    InvalidLabel(ParseError, TokenKind),
-    LabelRedefinition(ParseError, TokenKind),
-    UndefinedInst(ParseError, TokenKind),
-    MissingOperand(ParseError, TokenKind),
-    UnexpectedOperand(ParseError, TokenKind),
+    InvalidLabel(ParseError, Token),
+    LabelRedefinition(ParseError, Token),
+    UndefinedInst(ParseError, Token),
+    MissingOperand(ParseError, Token),
+    UnexpectedOperand(ParseError, Token),
 }
 
 impl From<ioError> for AssemblerError {
@@ -47,7 +78,7 @@ impl std::fmt::Display for AssemblerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AssemblerError::Io(error) => write!(f, "Error reading file: {}", error),
-            AssemblerError::MissingProgSection => write!(
+            AssemblerError::MissingProgDirective => write!(
                 f,
                 "Missing program section. Add the @prog keyword at the beginning of a line to mark the start of the program section"
             ),
@@ -86,8 +117,35 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
     }
 }
 
-fn parse_sasm(asm_text: String) -> Result<Program, AssemblerError> {
-    let lines = asm_text.lines().map(|line| line.trim()).collect::<Vec<_>>();
+fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
+    let mut label_instaddr_map: HashMap<String, usize> = HashMap::new();
+    let mut instr_count = 0;
+
+    let lines = sasm_text
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+
+            // remove comments
+            if trimmed.starts_with("#") {
+                return None;
+            }
+
+            Some(trimmed)
+        })
+        .collect::<Vec<_>>();
+
+    // find @prog directive and move iterator there
+    if let Some(prog_line_num) = lines.iter().position(|line| line.starts_with("@prog")) {
+        let prog_lines = lines.iter().skip(prog_line_num);
+    } else {
+        return Err(AssemblerError::MissingProgDirective);
+    }
+
+    todo!()
+}
+
+fn parse_token(token: &str) -> Token {
     todo!()
 }
 

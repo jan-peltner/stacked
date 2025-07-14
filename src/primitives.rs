@@ -45,7 +45,7 @@ impl Display for Atom {
                 write!(f, "{}", val)?;
             }
             &Atom::Float(val) => {
-                write!(f, "{:.4}", val)?;
+                write!(f, "{}", val)?;
             }
         }
         Ok(())
