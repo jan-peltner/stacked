@@ -2,6 +2,7 @@ use crate::primitives::{Atom, Inst, Program};
 use std::io::Error as ioError;
 use std::{collections::HashMap, path::PathBuf};
 
+#[derive(Debug)]
 pub enum TokenKind {
     Symbol,
     Inst,
@@ -16,6 +17,7 @@ impl std::fmt::Display for TokenKind {
     }
 }
 
+#[derive(Debug)]
 pub struct ParseError {
     pub kind: TokenKind,
     pub line: usize,
@@ -23,6 +25,7 @@ pub struct ParseError {
     pub message: String,
 }
 
+#[derive(Debug)]
 pub enum AssemblerError {
     Io(ioError),
     InvalidFile(String),
@@ -62,6 +65,8 @@ impl std::fmt::Display for AssemblerError {
     }
 }
 
+impl std::error::Error for AssemblerError {}
+
 pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError> {
     if let Some(file_name) = path.to_str() {
         if !file_name.ends_with(".sasm") {
@@ -81,6 +86,7 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
 }
 
 fn parse_sasm(asm_text: String) -> Result<Program, AssemblerError> {
+    let x = AssemblerError::MissingProgSection;
     todo!()
 }
 
