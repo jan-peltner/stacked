@@ -19,7 +19,6 @@ impl std::fmt::Display for TokenKind {
 
 #[derive(Debug)]
 pub struct ParseError {
-    pub kind: TokenKind,
     pub line: usize,
     pub token: String,
     pub message: String,
@@ -30,11 +29,12 @@ pub enum AssemblerError {
     Io(ioError),
     InvalidFile(String),
     MissingProgSection,
-    InvalidLabel(ParseError),
-    LabelRedefinition(ParseError),
-    UndefinedInst(ParseError),
-    MissingOperand(ParseError),
-    UnexpectedOperand(ParseError),
+    MissingMainLabel,
+    InvalidLabel(ParseError, TokenKind),
+    LabelRedefinition(ParseError, TokenKind),
+    UndefinedInst(ParseError, TokenKind),
+    MissingOperand(ParseError, TokenKind),
+    UnexpectedOperand(ParseError, TokenKind),
 }
 
 impl From<ioError> for AssemblerError {
@@ -49,17 +49,18 @@ impl std::fmt::Display for AssemblerError {
             AssemblerError::Io(error) => write!(f, "Error reading file: {}", error),
             AssemblerError::MissingProgSection => write!(
                 f,
-                "Missing program section. Add the @prog label to mark the beginning of the program"
+                "Missing program section. Add the @prog keyword at the beginning of a line to mark the start of the program section"
             ),
             AssemblerError::InvalidFile(msg) => write!(f, "Invalid file: {}", msg),
-            AssemblerError::InvalidLabel(parse_error)
-            | AssemblerError::LabelRedefinition(parse_error)
-            | AssemblerError::UndefinedInst(parse_error)
-            | AssemblerError::MissingOperand(parse_error)
-            | AssemblerError::UnexpectedOperand(parse_error) => write!(
+            AssemblerError::MissingMainLabel => write!(f, "Missing main label. Add ~main symbol to mark the entry point for the program"),
+            AssemblerError::InvalidLabel(parse_error, token)
+            | AssemblerError::LabelRedefinition(parse_error, token)
+            | AssemblerError::UndefinedInst(parse_error, token)
+            | AssemblerError::MissingOperand(parse_error, token)
+            | AssemblerError::UnexpectedOperand(parse_error, token) => write!(
                 f,
                 "Parse error on line {} for {}: {} - {}",
-                parse_error.line, parse_error.kind, parse_error.token, parse_error.message
+                parse_error.line, token, parse_error.token, parse_error.message
             ),
         }
     }
