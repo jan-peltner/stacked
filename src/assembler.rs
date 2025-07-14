@@ -87,7 +87,7 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
 }
 
 fn parse_sasm(asm_text: String) -> Result<Program, AssemblerError> {
-    let x = AssemblerError::MissingProgSection;
+    let lines = asm_text.lines().map(|line| line.trim()).collect::<Vec<_>>();
     todo!()
 }
 
