@@ -211,7 +211,7 @@ mod test {
     use crate::primitives::{Dir, NumLit, Sym, Token};
 
     #[test]
-    fn test_parse_invalid_opcode() {
+    fn parse_invalid_opcode() {
         assert!(matches!(
             parse_token("InvalidInst"),
             Err(AssemblerError::UndefinedToken(_))
@@ -219,7 +219,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_invalid_num_lit() {
+    fn parse_invalid_num_lit() {
         assert!(matches!(
             parse_token("shq12"),
             Err(AssemblerError::UndefinedToken(_))
@@ -227,7 +227,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_label() {
+    fn parse_label() {
         match parse_token("~main") {
             Ok(Token::Symbol(Sym::Label(label))) => {
                 assert_eq!(label, "~main");
@@ -237,7 +237,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_directives() {
+    fn parse_directives() {
         assert!(matches!(
             parse_token("@prog"),
             Ok(Token::Directive(Dir::Prog))
@@ -253,7 +253,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_integer_literals() {
+    fn parse_integer_literals() {
         // positive integers
         assert!(matches!(
             parse_token("42"),
@@ -290,7 +290,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_float_literals() {
+    fn parse_float_literals() {
         // basic floats
         assert!(matches!(
             parse_token("3.14"),
@@ -335,7 +335,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_numeric_edge_cases() {
+    fn parse_numeric_edge_cases() {
         // numbers that are too large for i64 should parse as float
         assert!(matches!(
             parse_token("18446744073709551616"), // u64::MAX + 1, too large for i64
