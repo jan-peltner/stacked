@@ -122,6 +122,18 @@ pub enum NumLit {
     Int(i64),
 }
 
+impl NumLit {
+    pub fn from_str(s: &str) -> Option<Self> {
+        if let Some(num) = s.parse::<i64>().ok() {
+            return Some(NumLit::Int(num));
+        }
+        if let Some(num) = s.parse::<f64>().ok() {
+            return Some(NumLit::Float(num));
+        }
+        None
+    }
+}
+
 #[derive(Debug)]
 pub enum Dir {
     Prog,

@@ -128,7 +128,7 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
 }
 
 fn parse_token(token: &str) -> Result<Token, AssemblerError> {
-    let token = build_token(token);
+    let token = get_token_slice(token);
     match token.chars().next() {
         // label
         Some('~') => {
@@ -173,7 +173,7 @@ fn parse_token(token: &str) -> Result<Token, AssemblerError> {
             if let Some(op) = Op::from_str(token) {
                 return Ok(Token::Opcode(op));
             }
-            if let Some(num_lit) = try_parse_numlit(token) {
+            if let Some(num_lit) = NumLit::from_str(token) {
                 return Ok(Token::NumericLiteral(num_lit));
             }
 
@@ -186,19 +186,9 @@ fn parse_token(token: &str) -> Result<Token, AssemblerError> {
     }
 }
 
-fn build_token(line: &str) -> &str {
+fn get_token_slice(line: &str) -> &str {
     let token_end_index = line.find(|c: char| c.is_whitespace()).unwrap_or(line.len());
     &line[0..token_end_index]
-}
-
-fn try_parse_numlit(token: &str) -> Option<NumLit> {
-    if let Some(num) = token.parse::<i64>().ok() {
-        return Some(NumLit::Int(num));
-    }
-    if let Some(num) = token.parse::<f64>().ok() {
-        return Some(NumLit::Float(num));
-    }
-    None
 }
 
 pub fn serialize_program_to_bytecode(_program: Program) -> Result<(), ioError> {
