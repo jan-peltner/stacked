@@ -4,8 +4,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Debug)]
 pub struct ParseError {
-    pub line: usize,
-    pub token: String,
+    pub parsed: String,
     pub message: String,
 }
 
@@ -13,13 +12,19 @@ pub struct ParseError {
 pub enum AssemblerError {
     Io(ioError),
     InvalidFile(String),
+
     MissingProgDirective,
+    InvalidDirective(ParseError),
+    UndefinedDirective(ParseError),
+
     MissingMainLabel,
-    InvalidLabel(ParseError, Token),
-    LabelRedefinition(ParseError, Token),
-    UndefinedInst(ParseError, Token),
-    MissingOperand(ParseError, Token),
-    UnexpectedOperand(ParseError, Token),
+    InvalidLabel(ParseError),
+    LabelRedefinition(ParseError),
+
+    UndefinedInst(ParseError),
+
+    MissingLiteral(ParseError),
+    UnexpectedLiteral(ParseError),
 }
 
 impl From<ioError> for AssemblerError {
@@ -38,14 +43,16 @@ impl std::fmt::Display for AssemblerError {
             ),
             AssemblerError::InvalidFile(msg) => write!(f, "Invalid file: {}", msg),
             AssemblerError::MissingMainLabel => write!(f, "Missing main label. Add ~main symbol after @prog directive to mark the entry point for the program"),
-            AssemblerError::InvalidLabel(parse_error, token)
-            | AssemblerError::LabelRedefinition(parse_error, token)
-            | AssemblerError::UndefinedInst(parse_error, token)
-            | AssemblerError::MissingOperand(parse_error, token)
-            | AssemblerError::UnexpectedOperand(parse_error, token) => write!(
+            AssemblerError::InvalidLabel(parse_error)
+            | AssemblerError::InvalidDirective(parse_error)
+            | AssemblerError::UndefinedDirective(parse_error)
+            | AssemblerError::LabelRedefinition(parse_error)
+            | AssemblerError::UndefinedInst(parse_error)
+            | AssemblerError::MissingLiteral(parse_error)
+            | AssemblerError::UnexpectedLiteral(parse_error) => write!(
                 f,
-                "Parse error on line {} for {}: {} - {}",
-                parse_error.line, token, parse_error.token, parse_error.message
+                "Parse error for {}: {}",
+                parse_error.parsed, parse_error.message
             ),
         }
     }
@@ -94,7 +101,7 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
     if let Some(prog_line_num) = lines.iter().position(|line| line.starts_with("@prog")) {
         let it = lines.iter().skip(prog_line_num + 1);
         for line in it {
-            match parse_token(line) {
+            match parse_token(line)? {
                 Token::Symbol(sym) => match sym {
                     Sym::Label(label_name) => {
                         if label_name == "~main" {
@@ -120,14 +127,57 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
     todo!()
 }
 
-fn parse_token(line: &str) -> Token {
-    if line.starts_with("~") {
-        let label_end_index = line.find(|c: char| c.is_whitespace()).unwrap_or(line.len());
-        let label = &line[0..label_end_index];
-        return Token::Symbol(Sym::Label(label.to_string()));
-    } else {
-        Token::Directive(Dir::Data)
+fn parse_token(line: &str) -> Result<Token, AssemblerError> {
+    let token = build_token(line);
+    match token.chars().next() {
+        // label
+        Some('~') => {
+            if !token
+                .chars()
+                .skip(1)
+                .all(|c: char| c.is_ascii_alphanumeric() || c == '_')
+            {
+                return Err(AssemblerError::InvalidLabel(ParseError {
+                    parsed: token.to_string(),
+                    message: "Only alphanumeric ascii characters and '_' are allowed for symbols"
+                        .to_string(),
+                }));
+            }
+            return Ok(Token::Symbol(Sym::Label(token.to_string())));
+        }
+        // directive
+        Some('@') => {
+            if !token
+                .chars()
+                .skip(1)
+                .all(|c: char| c.is_ascii_alphanumeric() || c == '_')
+            {
+                return Err(AssemblerError::InvalidDirective(ParseError {
+                    parsed: token.to_string(),
+                    message: "Only alphanumeric ascii characters and '_' are allowed for symbols"
+                        .to_string(),
+                }));
+            }
+
+            if let Some(dir) = Dir::from_str(token) {
+                return Ok(Token::Directive(dir));
+            }
+
+            Err(AssemblerError::UndefinedDirective(ParseError {
+                parsed: token.to_string(),
+                message: format!("{} is not a valid directive.", token),
+            }))
+        }
+        Some(ch) => {
+            todo!()
+        }
+        None => unreachable!(),
     }
+}
+
+fn build_token(line: &str) -> &str {
+    let token_end_index = line.find(|c: char| c.is_whitespace()).unwrap_or(line.len());
+    &line[0..token_end_index]
 }
 
 pub fn serialize_program_to_bytecode(program: Program) -> Result<(), ioError> {

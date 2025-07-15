@@ -107,6 +107,17 @@ impl Display for Dir {
     }
 }
 
+impl Dir {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "@prog" => Some(Dir::Prog),
+            "@use" => Some(Dir::Use),
+            "@data" => Some(Dir::Data),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub enum Atom {
     Int(i64),
