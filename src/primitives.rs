@@ -4,10 +4,9 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 #[derive(Debug)]
 pub enum Token {
     Symbol(Sym),
-    Instruction(Op),
+    Opcode(Op),
     Directive(Dir),
-    DataLiteral(Atom),
-    OffsetLiteral(usize),
+    NumericLiteral(NumLit),
 }
 
 impl Display for Token {
@@ -17,13 +16,12 @@ impl Display for Token {
                 Sym::Label(label) => write!(f, "Symbol::Label::<{label}>"),
                 Sym::Var(var) => write!(f, "Symbol::Var::<{var}>"),
             },
-            Token::Instruction(op) => write!(f, "Instruction::<{op}>"),
+            Token::Opcode(op) => write!(f, "Opcode::<{op}>"),
             Token::Directive(dir) => write!(f, "Directive::<{dir}>"),
-            Token::DataLiteral(atom) => match atom {
-                Atom::Int(int) => write!(f, "DataLiteral::Atom::Int::<{int}>"),
-                Atom::Float(float) => write!(f, "DataLiteral::Atom::Float::<{float}>"),
+            Token::NumericLiteral(num_lit) => match num_lit {
+                NumLit::Int(int) => write!(f, "NumericLiteral::Int::<{int}>"),
+                NumLit::Float(float) => write!(f, "NumericLiteral::Float::<{float}>"),
             },
-            Token::OffsetLiteral(usz) => write!(f, "OffsetLiteral::<{usz}>"),
         }
     }
 }
@@ -84,10 +82,44 @@ impl Display for Op {
     }
 }
 
+impl Op {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.to_uppercase().as_str() {
+            "PUSH" => Some(Op::Push),
+            "DUPE" => Some(Op::Dupe),
+            "ADD" => Some(Op::Add),
+            "SUB" => Some(Op::Sub),
+            "MUL" => Some(Op::Mul),
+            "DIV" => Some(Op::Div),
+            "EQ" => Some(Op::Eq),
+            "NEQ" => Some(Op::Neq),
+            "GT" => Some(Op::Gt),
+            "GTE" => Some(Op::Gte),
+            "LT" => Some(Op::Lt),
+            "LTE" => Some(Op::Lte),
+            "JUMP" => Some(Op::Jump),
+            "JUMP1" => Some(Op::Jump1),
+            "JUMP0" => Some(Op::Jump0),
+            "LOADI" => Some(Op::Loadi),
+            "LOADF" => Some(Op::Loadf),
+            "WRITE" => Some(Op::Write),
+            "PRINT" => Some(Op::Print),
+            "HALT" => Some(Op::Halt),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub enum Sym {
     Label(String),
     Var(String),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum NumLit {
+    Float(f64),
+    Int(i64),
 }
 
 #[derive(Debug)]
