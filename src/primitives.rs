@@ -1,7 +1,111 @@
 use core::ops::{Add, Div, Mul, Sub};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
-pub type Program = Vec<Inst>;
+#[derive(Debug)]
+pub enum Token {
+    Symbol(Sym),
+    Instruction(Op),
+    Directive(Dir),
+    DataLiteral(Atom),
+    OffsetLiteral(usize),
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Token::Symbol(sym) => match sym {
+                Sym::Label(label) => write!(f, "Symbol::Label::<{label}>"),
+                Sym::Var(var) => write!(f, "Symbol::Var::<{var}>"),
+            },
+            Token::Instruction(op) => write!(f, "Instruction::<{op}>"),
+            Token::Directive(dir) => write!(f, "Directive::<{dir}>"),
+            Token::DataLiteral(atom) => match atom {
+                Atom::Int(int) => write!(f, "DataLiteral::Atom::Int::<{int}>"),
+                Atom::Float(float) => write!(f, "DataLiteral::Atom::Float::<{float}>"),
+            },
+            Token::OffsetLiteral(usz) => write!(f, "OffsetLiteral::<{usz}>"),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Op {
+    Push,
+    Dupe,
+
+    Add,
+    Sub,
+    Mul,
+    Div,
+
+    Eq,
+    Neq,
+    Gt,
+    Gte,
+    Lt,
+    Lte,
+
+    Jump,
+    Jump1,
+    Jump0,
+
+    Loadi,
+    Loadf,
+    Write,
+
+    Print,
+    Halt,
+}
+
+impl Display for Op {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            Op::Push => write!(f, "PUSH"),
+            Op::Dupe => write!(f, "DUPE"),
+            Op::Add => write!(f, "ADD"),
+            Op::Sub => write!(f, "SUB"),
+            Op::Mul => write!(f, "MUL"),
+            Op::Div => write!(f, "DIV"),
+            Op::Eq => write!(f, "EQ"),
+            Op::Neq => write!(f, "NEQ"),
+            Op::Gt => write!(f, "GT"),
+            Op::Gte => write!(f, "GTE"),
+            Op::Lt => write!(f, "LT"),
+            Op::Lte => write!(f, "LTE"),
+            Op::Jump => write!(f, "JUMP"),
+            Op::Jump1 => write!(f, "JUMP1"),
+            Op::Jump0 => write!(f, "JUMP0"),
+            Op::Loadi => write!(f, "LOADI"),
+            Op::Loadf => write!(f, "LOADF"),
+            Op::Write => write!(f, "WRITE"),
+            Op::Print => write!(f, "PRINT"),
+            Op::Halt => write!(f, "HALT"),
+        }
+    }
+}
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub enum Sym {
+    Label(String),
+    Var(String),
+}
+
+#[derive(Debug)]
+pub enum Dir {
+    Prog,
+    Use,
+    Data,
+}
+
+impl Display for Dir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Dir::Prog => write!(f, "@prog"),
+            Dir::Use => write!(f, "@use"),
+            Dir::Data => write!(f, "@data"),
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, PartialOrd, Clone, Copy)]
 pub enum Atom {
@@ -145,3 +249,5 @@ pub enum Inst {
     Print, // prints the stack
     Halt,  // halts machine
 }
+
+pub type Program = Vec<Inst>;

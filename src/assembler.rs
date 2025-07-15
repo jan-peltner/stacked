@@ -1,52 +1,6 @@
-use crate::primitives::{Atom, Inst, Program};
-use std::fmt::Display;
+use crate::primitives::{Dir, Program, Sym, Token};
 use std::io::Error as ioError;
 use std::{collections::HashMap, path::PathBuf};
-
-#[derive(Debug)]
-pub enum Token {
-    Symbol(Sym),
-    Instruction(Inst),
-    Atom(Atom),
-    Directive(Dir),
-}
-
-#[derive(Debug)]
-pub enum Sym {
-    Label,
-    Var,
-}
-
-#[derive(Debug)]
-pub enum Dir {
-    Prog,
-    Use,
-    Data,
-}
-
-impl Display for Dir {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Dir::Prog => write!(f, "@prog"),
-            Dir::Use => write!(f, "@use"),
-            Dir::Data => write!(f, "@data"),
-        }
-    }
-}
-
-impl Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Token::Symbol(sym) => match sym {
-                Sym::Label => write!(f, "Symbol(Label)"),
-                Sym::Var => write!(f, "Symbol(Var)"),
-            },
-            Token::Instruction(_) => write!(f, "Instruction"),
-            Token::Atom(atom) => write!(f, "Atom: {atom})"),
-            Token::Directive(dir) => write!(f, "Directive({dir})"),
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct ParseError {
@@ -80,10 +34,10 @@ impl std::fmt::Display for AssemblerError {
             AssemblerError::Io(error) => write!(f, "Error reading file: {}", error),
             AssemblerError::MissingProgDirective => write!(
                 f,
-                "Missing program section. Add the @prog keyword at the beginning of a line to mark the start of the program section"
+                "Missing program directive. Add the @prog keyword at the beginning of a line to mark the start of the program section"
             ),
             AssemblerError::InvalidFile(msg) => write!(f, "Invalid file: {}", msg),
-            AssemblerError::MissingMainLabel => write!(f, "Missing main label. Add ~main symbol to mark the entry point for the program"),
+            AssemblerError::MissingMainLabel => write!(f, "Missing main label. Add ~main symbol after @prog directive to mark the entry point for the program"),
             AssemblerError::InvalidLabel(parse_error, token)
             | AssemblerError::LabelRedefinition(parse_error, token)
             | AssemblerError::UndefinedInst(parse_error, token)
@@ -118,9 +72,9 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
 }
 
 fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
-    let mut label_instaddr_map: HashMap<String, usize> = HashMap::new();
+    let mut label_instaddr_map: HashMap<Sym, usize> = HashMap::new();
     let mut instr_count = 0;
-
+    let mut found_main_label = false;
     let lines = sasm_text
         .lines()
         .filter_map(|line| {
@@ -135,9 +89,30 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
         })
         .collect::<Vec<_>>();
 
-    // find @prog directive and move iterator there
+    // first pass: find labels and map them to instruction address space
+    // also checks for @prog directive and ~main label to validate the sasm
     if let Some(prog_line_num) = lines.iter().position(|line| line.starts_with("@prog")) {
-        let prog_lines = lines.iter().skip(prog_line_num);
+        let it = lines.iter().skip(prog_line_num + 1);
+        for line in it {
+            match parse_token(line) {
+                Token::Symbol(sym) => match sym {
+                    Sym::Label(label_name) => {
+                        if label_name == "~main" {
+                            found_main_label = true
+                        }
+                        label_instaddr_map.insert(Sym::Label(label_name), instr_count);
+                    }
+                    Sym::Var(_) => todo!(),
+                },
+                _ => {
+                    instr_count += 1;
+                }
+            };
+        }
+
+        if !found_main_label {
+            return Err(AssemblerError::MissingMainLabel);
+        }
     } else {
         return Err(AssemblerError::MissingProgDirective);
     }
@@ -145,8 +120,14 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
     todo!()
 }
 
-fn parse_token(token: &str) -> Token {
-    todo!()
+fn parse_token(line: &str) -> Token {
+    if line.starts_with("~") {
+        let label_end_index = line.find(|c: char| c.is_whitespace()).unwrap_or(line.len());
+        let label = &line[0..label_end_index];
+        return Token::Symbol(Sym::Label(label.to_string()));
+    } else {
+        Token::Directive(Dir::Data)
+    }
 }
 
 pub fn serialize_program_to_bytecode(program: Program) -> Result<(), ioError> {
