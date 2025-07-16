@@ -70,7 +70,8 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
         }
         let file_str_contents =
             std::fs::read_to_string(&path).map_err(|e| AssemblerError::Io(e))?;
-        let tokens = tokenize(file_str_contents)?;
+
+        let (tokens, label_instaddr_map) = tokenize(file_str_contents)?;
         todo!()
     } else {
         return Err(AssemblerError::InvalidFile(
@@ -79,7 +80,7 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
     }
 }
 
-fn tokenize(sasm_text: String) -> Result<Program, AssemblerError> {
+fn tokenize(sasm_text: String) -> Result<(Vec<Token>, HashMap<Sym, usize>), AssemblerError> {
     let mut label_instaddr_map: HashMap<Sym, usize> = HashMap::new();
     let mut instr_count = 0;
     let mut found_main_label = false;
@@ -96,7 +97,7 @@ fn tokenize(sasm_text: String) -> Result<Program, AssemblerError> {
             Some(trimmed)
         })
         .collect::<Vec<_>>();
-    dbg!(&lines);
+
     // first pass: find labels and map them to instruction address space
     // also checks for @prog directive and ~main label to validate the sasm
     if let Some(prog_line_num) = lines.iter().position(|line| line.starts_with("@prog")) {
@@ -142,10 +143,10 @@ fn tokenize(sasm_text: String) -> Result<Program, AssemblerError> {
             let (token, token_len) = parse_token(&line[idx..])?;
             idx += token_len;
             tokens.push(token);
-            dbg!(&tokens);
         }
     }
-    todo!()
+
+    Ok((tokens, label_instaddr_map))
 }
 
 fn parse_token(line: &str) -> Result<(Token, usize), AssemblerError> {
