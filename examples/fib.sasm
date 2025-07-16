@@ -2,7 +2,7 @@
 	# imports might go here (if i decide to implement them)
 @data
 	# this is an unused variable to showcase data section
-	x = 12
+	# x = 12
 	
 @prog
 ~main

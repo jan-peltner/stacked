@@ -70,7 +70,8 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
         }
         let file_str_contents =
             std::fs::read_to_string(&path).map_err(|e| AssemblerError::Io(e))?;
-        return parse_sasm(file_str_contents);
+        let tokens = tokenize(file_str_contents)?;
+        todo!()
     } else {
         return Err(AssemblerError::InvalidFile(
             "Path is not a valid UTF-8 string".to_string(),
@@ -78,7 +79,7 @@ pub fn build_program_from_sasm(path: PathBuf) -> Result<Program, AssemblerError>
     }
 }
 
-fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
+fn tokenize(sasm_text: String) -> Result<Program, AssemblerError> {
     let mut label_instaddr_map: HashMap<Sym, usize> = HashMap::new();
     let mut instr_count = 0;
     let mut found_main_label = false;
@@ -87,22 +88,22 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
         .filter_map(|line| {
             let trimmed = line.trim();
 
-            // remove comments
-            if trimmed.starts_with("#") {
+            // remove comments and empty lines
+            if trimmed.starts_with("#") || trimmed.is_empty() {
                 return None;
             }
 
             Some(trimmed)
         })
         .collect::<Vec<_>>();
-
+    dbg!(&lines);
     // first pass: find labels and map them to instruction address space
     // also checks for @prog directive and ~main label to validate the sasm
     if let Some(prog_line_num) = lines.iter().position(|line| line.starts_with("@prog")) {
         let it = lines.iter().skip(prog_line_num + 1);
         for line in it {
             match parse_token(line)? {
-                Token::Symbol(sym) => match sym {
+                (Token::Symbol(sym), _) => match sym {
                     Sym::Label(label_name) => {
                         if label_name == "~main" {
                             found_main_label = true
@@ -124,11 +125,31 @@ fn parse_sasm(sasm_text: String) -> Result<Program, AssemblerError> {
         return Err(AssemblerError::MissingProgDirective);
     }
 
+    let mut tokens: Vec<Token> = Vec::new();
+
+    // second pass
+    'outer: for line in lines {
+        let mut idx = 0;
+        while idx < line.len() {
+            let char = line[idx..].chars().next().unwrap();
+            if char == '#' {
+                continue 'outer;
+            }
+            if char.is_whitespace() {
+                idx += 1;
+                continue;
+            }
+            let (token, token_len) = parse_token(&line[idx..])?;
+            idx += token_len;
+            tokens.push(token);
+            dbg!(&tokens);
+        }
+    }
     todo!()
 }
 
-fn parse_token(token: &str) -> Result<Token, AssemblerError> {
-    let token = get_token_slice(token);
+fn parse_token(line: &str) -> Result<(Token, usize), AssemblerError> {
+    let token = get_token_slice(line);
     match token.chars().next() {
         // label
         Some('~') => {
@@ -143,7 +164,7 @@ fn parse_token(token: &str) -> Result<Token, AssemblerError> {
                         .to_string(),
                 }));
             }
-            return Ok(Token::Symbol(Sym::Label(token.to_string())));
+            return Ok((Token::Symbol(Sym::Label(token.to_string())), token.len()));
         }
         // directive
         Some('@') => {
@@ -160,7 +181,7 @@ fn parse_token(token: &str) -> Result<Token, AssemblerError> {
             }
 
             if let Some(dir) = Dir::from_str(token) {
-                return Ok(Token::Directive(dir));
+                return Ok((Token::Directive(dir), token.len()));
             }
 
             Err(AssemblerError::UndefinedDirective(ParseError {
@@ -171,10 +192,10 @@ fn parse_token(token: &str) -> Result<Token, AssemblerError> {
         // opcode or literal
         Some(_) => {
             if let Some(op) = Op::from_str(token) {
-                return Ok(Token::Opcode(op));
+                return Ok((Token::Opcode(op), token.len()));
             }
             if let Some(num_lit) = NumLit::from_str(token) {
-                return Ok(Token::NumericLiteral(num_lit));
+                return Ok((Token::NumericLiteral(num_lit), token.len()));
             }
 
             Err(AssemblerError::UndefinedToken(ParseError {
@@ -182,7 +203,7 @@ fn parse_token(token: &str) -> Result<Token, AssemblerError> {
                 message: format!("{} is not a valid opcode or literal", token),
             }))
         }
-        None => unreachable!(),
+        None => unreachable!("{token}"),
     }
 }
 
@@ -219,7 +240,7 @@ mod test {
     #[test]
     fn parse_label() {
         match parse_token("~main") {
-            Ok(Token::Symbol(Sym::Label(label))) => {
+            Ok((Token::Symbol(Sym::Label(label)), _)) => {
                 assert_eq!(label, "~main");
             }
             _ => panic!("Expected label token"),
@@ -230,15 +251,15 @@ mod test {
     fn parse_directives() {
         assert!(matches!(
             parse_token("@prog"),
-            Ok(Token::Directive(Dir::Prog))
+            Ok((Token::Directive(Dir::Prog), _))
         ));
         assert!(matches!(
             parse_token("@use"),
-            Ok(Token::Directive(Dir::Use))
+            Ok((Token::Directive(Dir::Use), _))
         ));
         assert!(matches!(
             parse_token("@data"),
-            Ok(Token::Directive(Dir::Data))
+            Ok((Token::Directive(Dir::Data), _))
         ));
     }
 
@@ -247,35 +268,35 @@ mod test {
         // positive integers
         assert!(matches!(
             parse_token("42"),
-            Ok(Token::NumericLiteral(NumLit::Int(42)))
+            Ok((Token::NumericLiteral(NumLit::Int(42)), _))
         ));
         assert!(matches!(
             parse_token("0"),
-            Ok(Token::NumericLiteral(NumLit::Int(0)))
+            Ok((Token::NumericLiteral(NumLit::Int(0)), _))
         ));
         assert!(matches!(
             parse_token("1234567890"),
-            Ok(Token::NumericLiteral(NumLit::Int(1234567890)))
+            Ok((Token::NumericLiteral(NumLit::Int(1234567890)), _))
         ));
 
         // negative integers
         assert!(matches!(
             parse_token("-42"),
-            Ok(Token::NumericLiteral(NumLit::Int(-42)))
+            Ok((Token::NumericLiteral(NumLit::Int(-42)), _))
         ));
         assert!(matches!(
             parse_token("-1"),
-            Ok(Token::NumericLiteral(NumLit::Int(-1)))
+            Ok((Token::NumericLiteral(NumLit::Int(-1)), _))
         ));
 
         // edge cases for i64
         assert!(matches!(
             parse_token("9223372036854775807"), // i64::MAX
-            Ok(Token::NumericLiteral(NumLit::Int(9223372036854775807)))
+            Ok((Token::NumericLiteral(NumLit::Int(9223372036854775807)), _))
         ));
         assert!(matches!(
             parse_token("-9223372036854775808"), // i64::MIN
-            Ok(Token::NumericLiteral(NumLit::Int(-9223372036854775808)))
+            Ok((Token::NumericLiteral(NumLit::Int(-9223372036854775808)), _))
         ));
     }
 
@@ -284,43 +305,43 @@ mod test {
         // basic floats
         assert!(matches!(
             parse_token("3.14"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - 3.14).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - 3.14).abs() < f64::EPSILON
         ));
         assert!(matches!(
             parse_token("0.0"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if f == 0.0
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if f == 0.0
         ));
         assert!(matches!(
             parse_token("-2.5"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - (-2.5)).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - (-2.5)).abs() < f64::EPSILON
         ));
 
         // scientific notation
         assert!(matches!(
             parse_token("1e10"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - 1e10).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - 1e10).abs() < f64::EPSILON
         ));
         assert!(matches!(
             parse_token("2.5e-3"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - 2.5e-3).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - 2.5e-3).abs() < f64::EPSILON
         ));
         assert!(matches!(
             parse_token("-1.23E+4"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - (-1.23E+4)).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - (-1.23E+4)).abs() < f64::EPSILON
         ));
 
         // special float values
         assert!(matches!(
             parse_token("inf"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if f.is_infinite() && f.is_sign_positive()
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if f.is_infinite() && f.is_sign_positive()
         ));
         assert!(matches!(
             parse_token("-inf"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if f.is_infinite() && f.is_sign_negative()
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if f.is_infinite() && f.is_sign_negative()
         ));
         assert!(matches!(
             parse_token("NaN"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if f.is_nan()
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if f.is_nan()
         ));
     }
 
@@ -329,19 +350,19 @@ mod test {
         // numbers that are too large for i64 should parse as float
         assert!(matches!(
             parse_token("18446744073709551616"), // u64::MAX + 1, too large for i64
-            Ok(Token::NumericLiteral(NumLit::Float(_)))
+            Ok((Token::NumericLiteral(NumLit::Float(_)), _))
         ));
 
         // decimal point with no fractional part should still be float
         assert!(matches!(
             parse_token("42."),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - 42.0).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - 42.0).abs() < f64::EPSILON
         ));
 
         // leading decimal point
         assert!(matches!(
             parse_token(".5"),
-            Ok(Token::NumericLiteral(NumLit::Float(f))) if (f - 0.5).abs() < f64::EPSILON
+            Ok((Token::NumericLiteral(NumLit::Float(f)), _)) if (f - 0.5).abs() < f64::EPSILON
         ));
     }
 }
